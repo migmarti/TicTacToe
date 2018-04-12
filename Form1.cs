@@ -19,10 +19,15 @@ namespace TicTacToe {
             InitializeComponent();
             agent = new Agent("X");
             board = new Board(panel1, label1, 3, agent);
+            //board = new Board(panel1, label1, 3, null);
         }
 
         private void button1_Click(object sender, EventArgs e) {
-            board.clearValues();
+            board.clearValues(false);
+        }
+
+        private void button2_Click(object sender, EventArgs e) {
+            board.clearValues(true);
         }
 
         //Eliminate flicker

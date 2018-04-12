@@ -14,7 +14,9 @@ namespace TicTacToe.Classes {
         public String value { get; set; }
         public int row { get; set; }
         public int column { get; set; }
+        public int index { get; set; }
         public bool highlight { get; set; }
+        public bool analyzed { get; set; }
 
         public Cell(int row, int column, Point startPoint, int cellSizeX, int cellSizeY) {
             this.row = row;

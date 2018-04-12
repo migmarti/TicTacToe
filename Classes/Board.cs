@@ -10,13 +10,14 @@ using System.Windows.Forms;
 namespace TicTacToe.Classes {
     class Board {
 
-        int size, width, height, cellCount, setValues;
+        public int size, width, height, cellCount;
         Panel panel;
         Label label;
         Cell[,] cells;
         Agent agent;
-        String currentValue;
-        bool gameWon = false;
+        public String currentValue;
+        public bool gameWon = false;
+        public bool gameTie = false;
 
         public Board(Panel p, Label l, int cellDensity, Agent agent) {
             this.panel = p;
@@ -26,12 +27,13 @@ namespace TicTacToe.Classes {
             this.width = p.Width;
             this.height = p.Height;
             this.cellCount = cellDensity * cellDensity;
-            this.setValues = 0;
             this.agent = agent;
             initializeCells();
             p.Paint += new PaintEventHandler(panelPaint);
             p.Click += panelClick;
+            this.agent.setBoard(this);
             randomizeFirst();
+            //this.currentValue = "O";
             refresh();
         }
 
@@ -39,49 +41,124 @@ namespace TicTacToe.Classes {
             return this.cells;
         }
 
-        public bool isFull() {
-            return cellCount == setValues;
+        public List<Cell> getEmptyCells() {
+            List<Cell> emptyCells = new List<Cell>();
+            foreach (Cell cell in this.cells) {
+                if (cell.value == "") {
+                    emptyCells.Add(cell);
+                }
+            }
+            return emptyCells;
         }
 
-        public void clearValues() {
+        public bool isFull() {
+            return getEmptyCells().Count == 0;
+        }
+
+        public void clearValues(bool clearAgent) {
             for (int i = 0; i < size; i++) {
                 for (int j = 0; j < size; j++) {
                     this.cells[i, j].value = "";
                     this.cells[i, j].highlight = false;
                 }
             }
-            setValues = 0;
             gameWon = false;
+            gameTie = false;
+            if (clearAgent) {
+                this.agent = null;
+            }
+            else {
+                this.agent = new Agent("X");
+                this.agent.setBoard(this);
+            }
             randomizeFirst();
+            //this.currentValue = "O";
             refresh();
         }
 
-        public void putValue(int row, int column) {
-            if (this.cells[row, column].value == "") {
-                this.cells[row, column].value = currentValue;
-                if (currentValue == "O") {
-                    currentValue = "X";
+        public Cell getCellByIndex(int index) {
+            for (int i = 0; i < size; i++) {
+                for (int j = 0; j < size; j++) {
+                    if (this.cells[i, j].index == index) {
+                        return this.cells[i, j];
+                    }
                 }
-                else {
-                    currentValue = "O";
-                }
-                setValues++;
-                checkWin();
-                refresh();
             }
+            return null;
+        }
+
+        public void putValue(int row, int column, String value) {
+            if (row < cells.GetLength(0) && column < cells.GetLength(1)) {
+                if (this.cells[row, column].value == "") {
+                    this.cells[row, column].value = value;
+                    currentValue = value;
+                    checkWin();
+                }
+            }
+        }
+
+        public void takeBack(int row, int column) {
+            //Console.WriteLine("TOOK BACK! " + row + " " + column);
+            this.cells[row, column].value = "";
+        }
+
+        private void cycleTurn() {
+            if (currentValue == "O") {
+                currentValue = "X";
+            }
+            else {
+                currentValue = "O";
+            }       
         }
 
         private void panelPaint(object sender, PaintEventArgs e) {
             Graphics g = e.Graphics;
             Pen pen = new Pen(Color.Black, 1);
-            draw(g, pen, panel.Width, panel.Height);
+            for (int i = 0; i < size; i++) {
+                for (int j = 0; j < size; j++) {
+                    this.cells[i, j].draw(pen, g);
+                }
+            }
             g.Dispose();
             pen.Dispose();
         }
 
         private void panelClick(object sender, EventArgs e) {
             Point point = panel.PointToClient(Cursor.Position);
-            handleClick(point.X, point.Y);
+            if ((!gameWon && !gameTie) && (agent == null || currentValue != agent.value)) {
+                bool found = false;
+                for (int i = 0; i < size; i++) {
+                    for (int j = 0; j < size; j++) {
+                        if (this.cells[i, j].hasPoint(point.X, point.Y) && this.cells[i, j].value == "") {
+                            putValue(i, j, currentValue);
+                            cycleTurn();
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) {
+                        refresh();
+                        handleAgent();
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void initializeCells() {
+            int cellSizeX = this.width / this.size;
+            int cellSizeY = this.height / this.size;
+            int index = 0;
+            this.cells = new Cell[this.size, this.size];
+            for (int i = 0; i < this.size; i++) {
+                for (int j = 0; j < this.size; j++) {
+                    Point startPoint = new Point((i * this.width) / this.size, (j * this.height) / this.size);
+                    this.cells[j, i] = new Cell(j, i, startPoint, cellSizeX, cellSizeY);
+                    this.cells[j, i].index = index;
+                    index++;
+                }
+            }
+
         }
 
         private void randomizeFirst() {
@@ -93,27 +170,28 @@ namespace TicTacToe.Classes {
             else if (num == 1) {
                 this.currentValue = "X";
             }
+            refresh();
             handleAgent();
         }
 
         private void handleAgent() {
-            if (agent != null && currentValue == agent.value && !gameWon) {
-                System.Threading.Thread.Sleep(250);
-                agent.handleTurn(this);
-            }
-        }
-
-        private void initializeCells() {
-            int cellSizeX = this.width / this.size;
-            int cellSizeY = this.height / this.size;
-            this.cells = new Cell[this.size, this.size];
-            for (int i = 0; i < this.size; i++) {
-                for (int j = 0; j < this.size; j++) {
-                    Point startPoint = new Point((i * this.width) / this.size, (j * this.height) / this.size);
-                    this.cells[j, i] = new Cell(j, i, startPoint, cellSizeX, cellSizeY);
+            if (agent != null && currentValue == agent.value && (!gameWon && !gameTie) ) {
+                List<Cell> emptyCells = getEmptyCells();
+                if (emptyCells.Count > 0) {
+                    if (emptyCells.Count == cellCount) {
+                        agent.handleTurn();
+                    }
+                    else {
+                        Move move = agent.minimax(emptyCells.Count, true);
+                        foreach (Cell c in this.cells) {
+                            c.highlight = false;
+                        }
+                        putValue(move.row, move.column, agent.value);
+                    }
+                    cycleTurn();
+                    refresh();
                 }
             }
-
         }
 
         private void refresh() {
@@ -124,27 +202,8 @@ namespace TicTacToe.Classes {
             this.panel.Update();
         }
 
-        private void handleClick(int x, int y) {
-            if (!gameWon) {
-                bool found = false;
-                for (int i = 0; i < size; i++) {
-                    for (int j = 0; j < size; j++) {
-                        if (this.cells[i, j].hasPoint(x, y)) {
-                            putValue(i, j);
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (found) {
-                        handleAgent();
-                        break;
-                    }
-                }
-            }
-        }
-
         private void setTurnLabel() {
-            if (setValues <= cellCount) {
+            if (!gameTie && !gameWon) {
                 if (agent != null && currentValue == agent.value) {
                     label.Text = currentValue + "'s Turn (CPU)";
                 }
@@ -152,10 +211,7 @@ namespace TicTacToe.Classes {
                     label.Text = currentValue + "'s Turn";
                 }
             }
-            if (isFull() && !gameWon)  {
-                label.Text = "It's a tie.";
-            }
-            Task.Delay(500);
+
         }
 
         private void checkWin() {
@@ -167,6 +223,10 @@ namespace TicTacToe.Classes {
                     if (gameWon) break;
                 }
                 if (gameWon) break;
+            }
+            if (isFull() && !gameWon) {
+                label.Text = "It's a tie.";
+                gameTie = true;
             }
         }
 
@@ -205,14 +265,6 @@ namespace TicTacToe.Classes {
                 Cell topRightCell = this.cells[cell.row - 1, cell.column + 1];
                 Cell bottomLeftCell = this.cells[cell.row + 1, cell.column - 1];
                 checkValues(topRightCell, cell, bottomLeftCell);
-            }
-        }
-
-        private void draw(Graphics g, Pen pen, int width, int height) {
-            for (int i = 0; i < size; i++) {
-                for (int j = 0; j < size; j++) {
-                    this.cells[i, j].draw(pen, g);
-                }   
             }
         }
     }

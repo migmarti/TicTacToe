@@ -47,6 +47,7 @@
     <Compile Include="Classes\Agent.cs" />
     <Compile Include="Classes\Board.cs" />
     <Compile Include="Classes\Cell.cs" />
+    <Compile Include="Classes\Move.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>
